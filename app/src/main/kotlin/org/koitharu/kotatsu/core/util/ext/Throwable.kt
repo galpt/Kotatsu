@@ -2,6 +2,7 @@ package org.koitharu.kotatsu.core.util.ext
 
 import android.content.ActivityNotFoundException
 import android.content.res.Resources
+import android.database.sqlite.SQLiteFullException
 import androidx.annotation.DrawableRes
 import coil3.network.HttpException
 import com.davemorrissey.labs.subscaleview.decoder.ImageDecodeException
@@ -45,6 +46,7 @@ import org.koitharu.kotatsu.parsers.util.ifNullOrEmpty
 import org.koitharu.kotatsu.scrobbling.common.domain.ScrobblerAuthRequiredException
 import java.io.File
 import java.net.ConnectException
+import java.net.HttpURLConnection
 import java.net.NoRouteToHostException
 import java.net.SocketException
 import java.net.SocketTimeoutException
@@ -90,6 +92,7 @@ private fun Throwable.getDisplayMessageOrNull(resources: Resources): String? = w
 		}
 	}
 
+	is SQLiteFullException -> resources.getString(R.string.error_no_space_left)
 	is UnsupportedFileException -> resources.getString(R.string.text_file_not_supported)
 	is BadBackupFormatException -> resources.getString(R.string.unsupported_backup_message)
 	is FileNotFoundException -> parseMessage(resources) ?: message
@@ -216,6 +219,7 @@ fun Throwable.isNetworkError(): Boolean {
 		|| this is SocketTimeoutException
 		|| this is StreamResetException
 		|| this is SocketException
+		|| this is HttpException && response.code == HttpURLConnection.HTTP_GATEWAY_TIMEOUT
 }
 
 fun Throwable.report(silent: Boolean = false) {

@@ -93,6 +93,9 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 	val isQuickFilterEnabled: Boolean
 		get() = prefs.getBoolean(KEY_QUICK_FILTER, true)
 
+	val isDescriptionExpanded: Boolean
+		get() = !prefs.getBoolean(KEY_COLLAPSE_DESCRIPTION, true)
+
 	var historyListMode: ListMode
 		get() = prefs.getEnumValue(KEY_LIST_MODE_HISTORY, listMode)
 		set(value) = prefs.edit { putEnumValue(KEY_LIST_MODE_HISTORY, value) }
@@ -139,6 +142,9 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 
 	val isReaderControlAlwaysLTR: Boolean
 		get() = prefs.getBoolean(KEY_READER_CONTROL_LTR, false)
+
+	val isReaderNavigationInverted: Boolean
+		get() = prefs.getBoolean(KEY_READER_NAVIGATION_INVERTED, false)
 
 	val isReaderFullscreenEnabled: Boolean
 		get() = prefs.getBoolean(KEY_READER_FULLSCREEN, true)
@@ -222,6 +228,9 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		get() = prefs.getBoolean(KEY_INCOGNITO_MODE, false)
 		set(value) = prefs.edit { putBoolean(KEY_INCOGNITO_MODE, value) }
 
+	val isReaderMultiTaskEnabled: Boolean
+		get() = prefs.getBoolean(KEY_READER_MULTITASK, false)
+
 	var isChaptersReverse: Boolean
 		get() = prefs.getBoolean(KEY_REVERSE_CHAPTERS, false)
 		set(value) = prefs.edit { putBoolean(KEY_REVERSE_CHAPTERS, value) }
@@ -257,7 +266,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		get() = prefs.getBoolean(KEY_PROTECT_APP_BIOMETRIC, true)
 		set(value) = prefs.edit { putBoolean(KEY_PROTECT_APP_BIOMETRIC, value) }
 
-	val isMirrorSwitchingAvailable: Boolean
+	val isMirrorSwitchingEnabled: Boolean
 		get() = prefs.getBoolean(KEY_MIRROR_SWITCHING, false)
 
 	val isExitConfirmationEnabled: Boolean
@@ -392,19 +401,29 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 
 	var readerColorFilter: ReaderColorFilter?
 		get() = runCatching {
-			val brightness = prefs.getFloat(KEY_CF_BRIGHTNESS, ReaderColorFilter.EMPTY.brightness)
-			val contrast = prefs.getFloat(KEY_CF_CONTRAST, ReaderColorFilter.EMPTY.contrast)
-			val inverted = prefs.getBoolean(KEY_CF_INVERTED, ReaderColorFilter.EMPTY.isInverted)
-			val grayscale = prefs.getBoolean(KEY_CF_GRAYSCALE, ReaderColorFilter.EMPTY.isGrayscale)
-			ReaderColorFilter(brightness, contrast, inverted, grayscale).takeUnless { it.isEmpty }
+			ReaderColorFilter(
+				brightness = prefs.getFloat(KEY_CF_BRIGHTNESS, ReaderColorFilter.EMPTY.brightness),
+				contrast = prefs.getFloat(KEY_CF_CONTRAST, ReaderColorFilter.EMPTY.contrast),
+				isInverted = prefs.getBoolean(KEY_CF_INVERTED, ReaderColorFilter.EMPTY.isInverted),
+				isGrayscale = prefs.getBoolean(KEY_CF_GRAYSCALE, ReaderColorFilter.EMPTY.isGrayscale),
+				isBookBackground = prefs.getBoolean(KEY_CF_BOOK, ReaderColorFilter.EMPTY.isBookBackground),
+			).takeUnless { it.isEmpty }
 		}.getOrNull()
 		set(value) {
 			prefs.edit {
-				val cf = value ?: ReaderColorFilter.EMPTY
-				putFloat(KEY_CF_BRIGHTNESS, cf.brightness)
-				putFloat(KEY_CF_CONTRAST, cf.contrast)
-				putBoolean(KEY_CF_INVERTED, cf.isInverted)
-				putBoolean(KEY_CF_GRAYSCALE, cf.isGrayscale)
+				if (value != null) {
+					putFloat(KEY_CF_BRIGHTNESS, value.brightness)
+					putFloat(KEY_CF_CONTRAST, value.contrast)
+					putBoolean(KEY_CF_INVERTED, value.isInverted)
+					putBoolean(KEY_CF_GRAYSCALE, value.isGrayscale)
+					putBoolean(KEY_CF_BOOK, value.isBookBackground)
+				} else {
+					remove(KEY_CF_BRIGHTNESS)
+					remove(KEY_CF_CONTRAST)
+					remove(KEY_CF_INVERTED)
+					remove(KEY_CF_GRAYSCALE)
+					remove(KEY_CF_BOOK)
+				}
 			}
 		}
 
@@ -625,6 +644,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		const val KEY_READER_DOUBLE_PAGES = "reader_double_pages"
 		const val KEY_READER_ZOOM_BUTTONS = "reader_zoom_buttons"
 		const val KEY_READER_CONTROL_LTR = "reader_taps_ltr"
+		const val KEY_READER_NAVIGATION_INVERTED = "reader_navigation_inverted"
 		const val KEY_READER_FULLSCREEN = "reader_fullscreen"
 		const val KEY_READER_VOLUME_BUTTONS = "reader_volume_buttons"
 		const val KEY_READER_ORIENTATION = "reader_orientation"
@@ -685,6 +705,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		const val KEY_DOH = "doh"
 		const val KEY_EXIT_CONFIRM = "exit_confirm"
 		const val KEY_INCOGNITO_MODE = "incognito"
+		const val KEY_READER_MULTITASK = "reader_multitask"
 		const val KEY_SYNC = "sync"
 		const val KEY_SYNC_SETTINGS = "sync_settings"
 		const val KEY_READER_BAR = "reader_bar"
@@ -729,6 +750,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		const val KEY_CF_CONTRAST = "cf_contrast"
 		const val KEY_CF_INVERTED = "cf_inverted"
 		const val KEY_CF_GRAYSCALE = "cf_grayscale"
+		const val KEY_CF_BOOK = "cf_book"
 		const val KEY_PAGES_TAB = "pages_tab"
 		const val KEY_DETAILS_TAB = "details_tab"
 		const val KEY_DETAILS_LAST_TAB = "details_last_tab"
@@ -741,6 +763,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		const val KEY_SOURCES_VERSION = "sources_version"
 		const val KEY_SOURCES_ENABLED_ALL = "sources_enabled_all"
 		const val KEY_QUICK_FILTER = "quick_filter"
+		const val KEY_COLLAPSE_DESCRIPTION = "description_collapse"
 		const val KEY_BACKUP_TG_ENABLED = "backup_periodic_tg_enabled"
 		const val KEY_BACKUP_TG_CHAT = "backup_periodic_tg_chat_id"
 		const val KEY_MANGA_LIST_BADGES = "manga_list_badges"

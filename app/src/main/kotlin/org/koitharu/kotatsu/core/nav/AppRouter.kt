@@ -25,6 +25,8 @@ import dagger.hilt.android.EntryPointAccessors
 import org.koitharu.kotatsu.BuildConfig
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.alternatives.ui.AlternativesActivity
+import org.koitharu.kotatsu.backups.ui.backup.BackupDialogFragment
+import org.koitharu.kotatsu.backups.ui.restore.RestoreDialogFragment
 import org.koitharu.kotatsu.bookmarks.ui.AllBookmarksActivity
 import org.koitharu.kotatsu.browser.BrowserActivity
 import org.koitharu.kotatsu.browser.cloudflare.CloudFlareActivity
@@ -50,6 +52,7 @@ import org.koitharu.kotatsu.core.ui.dialog.buildAlertDialog
 import org.koitharu.kotatsu.core.util.ext.connectivityManager
 import org.koitharu.kotatsu.core.util.ext.findActivity
 import org.koitharu.kotatsu.core.util.ext.getThemeDrawable
+import org.koitharu.kotatsu.core.util.ext.printStackTraceDebug
 import org.koitharu.kotatsu.core.util.ext.toFileOrNull
 import org.koitharu.kotatsu.core.util.ext.toUriOrNull
 import org.koitharu.kotatsu.core.util.ext.withArgs
@@ -93,8 +96,6 @@ import org.koitharu.kotatsu.search.ui.MangaListActivity
 import org.koitharu.kotatsu.search.ui.multi.SearchActivity
 import org.koitharu.kotatsu.settings.SettingsActivity
 import org.koitharu.kotatsu.settings.about.AppUpdateActivity
-import org.koitharu.kotatsu.settings.backup.BackupDialogFragment
-import org.koitharu.kotatsu.settings.backup.RestoreDialogFragment
 import org.koitharu.kotatsu.settings.override.OverrideConfigActivity
 import org.koitharu.kotatsu.settings.reader.ReaderTapGridConfigActivity
 import org.koitharu.kotatsu.settings.sources.auth.SourceAuthActivity
@@ -165,7 +166,11 @@ class AppRouter private constructor(
 	}
 
 	fun openReader(intent: ReaderIntent, anchor: View? = null) {
-		startActivity(intent.intent, anchor?.let { view -> scaleUpActivityOptionsOf(view) })
+		val activityIntent = intent.intent
+		if (settings.isReaderMultiTaskEnabled && activityIntent.data != null) {
+			activityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
+		}
+		startActivity(activityIntent, anchor?.let { view -> scaleUpActivityOptionsOf(view) })
 	}
 
 	fun openAlternatives(manga: Manga) {
@@ -246,8 +251,7 @@ class AppRouter private constructor(
 	}
 
 	fun openMangaOverrideConfig(manga: Manga) {
-		val intent = Intent(contextOrNull() ?: return, OverrideConfigActivity::class.java)
-			.putExtra(KEY_MANGA, ParcelableManga(manga, withDescription = false))
+		val intent = overrideEditIntent(contextOrNull() ?: return, manga)
 		startActivity(intent)
 	}
 
@@ -449,8 +453,10 @@ class AppRouter private constructor(
 		}.show()
 	}
 
-	fun showBackupCreateDialog() {
-		BackupDialogFragment().show()
+	fun createBackup(destination: Uri) {
+		BackupDialogFragment().withArgs(1) {
+			putParcelable(KEY_DATA, destination)
+		}.showDistinct()
 	}
 
 	fun showImportDialog() {
@@ -609,9 +615,11 @@ class AppRouter private constructor(
 		startActivity(Intent(contextOrNull() ?: return, activityClass))
 	}
 
-	private fun getFragmentManager(): FragmentManager? {
-		return fragment?.childFragmentManager ?: activity?.supportFragmentManager
-	}
+	private fun getFragmentManager(): FragmentManager? = runCatching {
+		fragment?.childFragmentManager ?: activity?.supportFragmentManager
+	}.onFailure { exception ->
+		exception.printStackTraceDebug()
+	}.getOrNull()
 
 	private fun shareLink(link: String, title: String) {
 		val context = contextOrNull() ?: return
@@ -677,9 +685,11 @@ class AppRouter private constructor(
 
 		fun detailsIntent(context: Context, manga: Manga) = Intent(context, DetailsActivity::class.java)
 			.putExtra(KEY_MANGA, ParcelableManga(manga))
+			.setData(shortMangaUrl(manga.id))
 
 		fun detailsIntent(context: Context, mangaId: Long) = Intent(context, DetailsActivity::class.java)
 			.putExtra(KEY_ID, mangaId)
+			.setData(shortMangaUrl(mangaId))
 
 		fun listIntent(context: Context, source: MangaSource, filter: MangaListFilter?, sortOrder: SortOrder?): Intent =
 			Intent(context, MangaListActivity::class.java)
@@ -697,7 +707,7 @@ class AppRouter private constructor(
 		fun cloudFlareResolveIntent(context: Context, exception: CloudFlareProtectedException): Intent =
 			Intent(context, CloudFlareActivity::class.java).apply {
 				data = exception.url.toUri()
-				putExtra(KEY_SOURCE, exception.source?.name)
+				putExtra(KEY_SOURCE, exception.source.name)
 				exception.headers[CommonHeaders.USER_AGENT]?.let {
 					putExtra(KEY_USER_AGENT, it)
 				}
@@ -766,11 +776,21 @@ class AppRouter private constructor(
 				.putExtra(KEY_SOURCE, source.name)
 		}
 
+		fun overrideEditIntent(context: Context, manga: Manga): Intent =
+			Intent(context, OverrideConfigActivity::class.java)
+				.putExtra(KEY_MANGA, ParcelableManga(manga, withDescription = false))
+
 		fun isShareSupported(manga: Manga): Boolean = when {
 			manga.isBroken -> false
 			manga.isLocal -> manga.url.toUri().toFileOrNull() != null
 			else -> true
 		}
+
+		fun shortMangaUrl(mangaId: Long) = Uri.Builder()
+			.scheme("kotatsu")
+			.path("manga")
+			.appendQueryParameter("id", mangaId.toString())
+			.build()
 
 		const val KEY_DATA = "data"
 		const val KEY_ENTRIES = "entries"

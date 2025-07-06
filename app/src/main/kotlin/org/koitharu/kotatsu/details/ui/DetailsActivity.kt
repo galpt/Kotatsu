@@ -1,6 +1,8 @@
 package org.koitharu.kotatsu.details.ui
 
+import android.app.assist.AssistContent
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import android.text.SpannedString
 import android.view.Gravity
@@ -51,6 +53,7 @@ import org.koitharu.kotatsu.core.nav.ReaderIntent
 import org.koitharu.kotatsu.core.nav.router
 import org.koitharu.kotatsu.core.os.AppShortcutManager
 import org.koitharu.kotatsu.core.parser.favicon.faviconUri
+import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.ui.BaseActivity
 import org.koitharu.kotatsu.core.ui.BaseListAdapter
 import org.koitharu.kotatsu.core.ui.dialog.buildAlertDialog
@@ -79,6 +82,7 @@ import org.koitharu.kotatsu.core.util.ext.observeEvent
 import org.koitharu.kotatsu.core.util.ext.parentView
 import org.koitharu.kotatsu.core.util.ext.start
 import org.koitharu.kotatsu.core.util.ext.textAndVisible
+import org.koitharu.kotatsu.core.util.ext.toUriOrNull
 import org.koitharu.kotatsu.databinding.ActivityDetailsBinding
 import org.koitharu.kotatsu.databinding.LayoutDetailsTableBinding
 import org.koitharu.kotatsu.details.data.MangaDetails
@@ -125,6 +129,9 @@ class DetailsActivity :
 	@Inject
 	lateinit var coil: ImageLoader
 
+	@Inject
+	lateinit var settings: AppSettings
+
 	private val viewModel: DetailsViewModel by viewModels()
 	private lateinit var menuProvider: DetailsMenuProvider
 	private lateinit var infoBinding: LayoutDetailsTableBinding
@@ -153,6 +160,9 @@ class DetailsActivity :
 		viewBinding.textViewDescription.movementMethod = LinkMovementMethodCompat.getInstance()
 		viewBinding.chipsTags.onChipClickListener = this
 		TitleScrollCoordinator(viewBinding.textViewTitle).attach(viewBinding.scrollView)
+		if (settings.isDescriptionExpanded) {
+			viewBinding.textViewDescription.maxLines = Int.MAX_VALUE - 1
+		}
 		viewBinding.containerBottomSheet?.let { sheet ->
 			sheet.setOnClickListener(this)
 			sheet.addOnLayoutChangeListener(this)
@@ -195,6 +205,13 @@ class DetailsActivity :
 			appShortcutManager = shortcutManager,
 		)
 		addMenuProvider(menuProvider)
+	}
+
+	override fun onProvideAssistContent(outContent: AssistContent) {
+		super.onProvideAssistContent(outContent)
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+			viewModel.getMangaOrNull()?.publicUrl?.toUriOrNull()?.let { outContent.webUri = it }
+		}
 	}
 
 	override fun isNsfwContent(): Flow<Boolean> = viewModel.manga.map { it?.contentRating == ContentRating.ADULT }
@@ -241,8 +258,10 @@ class DetailsActivity :
 			}
 
 			R.id.button_scrobbling_more -> {
-				val manga = viewModel.getMangaOrNull() ?: return
-				router.showScrobblingSelectorSheet(manga, null)
+				router.showScrobblingSelectorSheet(
+					manga = viewModel.getMangaOrNull() ?: return,
+					scrobblerService = viewModel.scrobblingInfo.value.firstOrNull()?.scrobbler
+				)
 			}
 
 			R.id.button_related_more -> {

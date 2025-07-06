@@ -48,7 +48,7 @@
 	<application
 		android:name="org.koitharu.kotatsu.KotatsuApp"
 		android:allowBackup="true"
-		android:backupAgent="org.koitharu.kotatsu.settings.backup.AppBackupAgent"
+		android:backupAgent="org.koitharu.kotatsu.backups.domain.AppBackupAgent"
 		android:dataExtractionRules="@xml/backup_rules"
 		android:enableOnBackInvokedCallback="@bool/is_predictive_back_enabled"
 		android:fullBackupContent="@xml/backup_content"
@@ -269,6 +269,24 @@
 		<activity
 			android:name="org.koitharu.kotatsu.tracker.ui.debug.TrackerDebugActivity"
 			android:label="@string/tracker_debug_info" />
+		<activity
+			android:name="org.koitharu.kotatsu.picker.ui.PageImagePickActivity"
+			android:exported="true"
+			android:label="@string/pick_manga_page">
+			<intent-filter>
+				<action android:name="android.intent.action.GET_CONTENT" />
+
+				<category android:name="android.intent.category.OPENABLE" />
+				<category android:name="android.intent.category.DEFAULT" />
+
+				<data android:mimeType="image/*" />
+			</intent-filter>
+			<intent-filter>
+				<action android:name="android.intent.action.PICK" />
+				<category android:name="android.intent.category.DEFAULT" />
+				<data android:mimeType="image/*" />
+			</intent-filter>
+		</activity>
 
 		<service
 			android:name="androidx.work.impl.foreground.SystemForegroundService"
@@ -279,7 +297,7 @@
 			android:foregroundServiceType="dataSync"
 			android:label="@string/local_manga_processing" />
 		<service
-			android:name="org.koitharu.kotatsu.settings.backup.PeriodicalBackupService"
+			android:name="org.koitharu.kotatsu.backups.ui.periodical.PeriodicalBackupService"
 			android:foregroundServiceType="dataSync"
 			android:label="@string/periodic_backups" />
 		<service
@@ -290,9 +308,13 @@
 			android:name="org.koitharu.kotatsu.local.ui.LocalIndexUpdateService"
 			android:label="@string/local_manga_processing" />
 		<service
-			android:name="org.koitharu.kotatsu.settings.backup.RestoreService"
+			android:name="org.koitharu.kotatsu.backups.ui.backup.BackupService"
 			android:foregroundServiceType="dataSync"
-			android:label="@string/restore_backup" />
+			android:label="@string/creating_backup" />
+		<service
+			android:name="org.koitharu.kotatsu.backups.ui.restore.RestoreService"
+			android:foregroundServiceType="dataSync"
+			android:label="@string/restoring_backup" />
 		<service
 			android:name="org.koitharu.kotatsu.local.ui.ImportService"
 			android:foregroundServiceType="dataSync"

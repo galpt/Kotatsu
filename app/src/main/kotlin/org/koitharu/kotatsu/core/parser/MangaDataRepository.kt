@@ -15,6 +15,7 @@ import org.koitharu.kotatsu.core.db.entity.MangaPrefsEntity
 import org.koitharu.kotatsu.core.db.entity.toEntities
 import org.koitharu.kotatsu.core.db.entity.toEntity
 import org.koitharu.kotatsu.core.db.entity.toManga
+import org.koitharu.kotatsu.core.db.entity.toMangaChapters
 import org.koitharu.kotatsu.core.db.entity.toMangaTags
 import org.koitharu.kotatsu.core.model.LocalMangaSource
 import org.koitharu.kotatsu.core.model.isLocal
@@ -119,10 +120,10 @@ class MangaDataRepository @Inject constructor(
 		return db.getMangaDao().findByPublicUrl(publicUrl)?.toManga()
 	}
 
-	suspend fun resolveIntent(intent: MangaIntent): Manga? = when {
-		intent.manga != null -> intent.manga
-		intent.mangaId != 0L -> findMangaById(intent.mangaId, true)
-		intent.uri != null -> resolverProvider.get().resolve(intent.uri)
+	suspend fun resolveIntent(intent: MangaIntent, withChapters: Boolean): Manga? = when {
+		intent.manga != null -> intent.manga.withCachedChaptersIfNeeded(withChapters)
+		intent.mangaId != 0L -> findMangaById(intent.mangaId, withChapters)
+		intent.uri != null -> resolverProvider.get().resolve(intent.uri).withCachedChaptersIfNeeded(withChapters)
 		else -> null
 	}
 
@@ -184,9 +185,26 @@ class MangaDataRepository @Inject constructor(
 		emitInitialState = emitInitialState,
 	)
 
+	private suspend fun Manga.withCachedChaptersIfNeeded(flag: Boolean): Manga = if (flag && chapters.isNullOrEmpty()) {
+		val cachedChapters = db.getChaptersDao().findAll(id)
+		if (cachedChapters.isEmpty()) {
+			this
+		} else {
+			copy(chapters = cachedChapters.toMangaChapters())
+		}
+	} else {
+		this
+	}
+
 	private fun MangaPrefsEntity.getColorFilterOrNull(): ReaderColorFilter? {
-		return if (cfBrightness != 0f || cfContrast != 0f || cfInvert || cfGrayscale) {
-			ReaderColorFilter(cfBrightness, cfContrast, cfInvert, cfGrayscale)
+		return if (cfBrightness != 0f || cfContrast != 0f || cfInvert || cfGrayscale || cfBookEffect) {
+			ReaderColorFilter(
+				brightness = cfBrightness,
+				contrast = cfContrast,
+				isInverted = cfInvert,
+				isGrayscale = cfGrayscale,
+				isBookBackground = cfBookEffect
+			)
 		} else {
 			null
 		}
@@ -207,10 +225,11 @@ class MangaDataRepository @Inject constructor(
 	private fun newEntity(mangaId: Long) = MangaPrefsEntity(
 		mangaId = mangaId,
 		mode = -1,
-		cfBrightness = 0f,
-		cfContrast = 0f,
-		cfInvert = false,
-		cfGrayscale = false,
+		cfBrightness = ReaderColorFilter.EMPTY.brightness,
+		cfContrast = ReaderColorFilter.EMPTY.contrast,
+		cfInvert = ReaderColorFilter.EMPTY.isInverted,
+		cfGrayscale = ReaderColorFilter.EMPTY.isGrayscale,
+		cfBookEffect = ReaderColorFilter.EMPTY.isBookBackground,
 		titleOverride = null,
 		coverUrlOverride = null,
 		contentRatingOverride = null,

@@ -43,6 +43,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koitharu.kotatsu.R
+import org.koitharu.kotatsu.backups.ui.periodical.PeriodicalBackupService
 import org.koitharu.kotatsu.browser.AdListUpdateService
 import org.koitharu.kotatsu.core.exceptions.resolve.SnackbarErrorObserver
 import org.koitharu.kotatsu.core.nav.router
@@ -73,7 +74,6 @@ import org.koitharu.kotatsu.search.ui.suggestion.SearchSuggestionListenerImpl
 import org.koitharu.kotatsu.search.ui.suggestion.SearchSuggestionMenuProvider
 import org.koitharu.kotatsu.search.ui.suggestion.SearchSuggestionViewModel
 import org.koitharu.kotatsu.search.ui.suggestion.adapter.SearchSuggestionAdapter
-import org.koitharu.kotatsu.settings.backup.PeriodicalBackupService
 import javax.inject.Inject
 import com.google.android.material.R as materialR
 
@@ -110,7 +110,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), AppBarOwner, BottomNav
 		setSupportActionBar(viewBinding.searchBar)
 
 		viewBinding.fab?.setOnClickListener(this)
-		viewBinding.navRail?.headerView?.setOnClickListener(this)
+		viewBinding.navRail?.headerView?.findViewById<View>(R.id.railFab)?.setOnClickListener(this)
 		fadingAppbarMediator =
 			FadingAppbarMediator(viewBinding.appbar, viewBinding.layoutSearch ?: viewBinding.searchBar)
 
@@ -127,7 +127,8 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), AppBarOwner, BottomNav
 
 		addMenuProvider(MainMenuProvider(router, viewModel))
 
-		onBackPressedDispatcher.addCallback(ExitCallback(this, viewBinding.container))
+		val exitCallback = ExitCallback(this, viewBinding.container)
+		onBackPressedDispatcher.addCallback(exitCallback)
 		onBackPressedDispatcher.addCallback(navigationDelegate)
 
 		if (savedInstanceState == null) {
@@ -145,6 +146,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), AppBarOwner, BottomNav
 		searchSuggestionViewModel.isIncognitoModeEnabled.observe(this, this::onIncognitoModeChanged)
 		viewBinding.bottomNav?.addOnLayoutChangeListener(this)
 		viewBinding.searchView.addTransitionListener(this)
+		viewBinding.searchView.addTransitionListener(exitCallback)
 		initSearch()
 	}
 
@@ -288,11 +290,11 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), AppBarOwner, BottomNav
 			withResumed {
 				MangaPrefetchService.prefetchLast(this@MainActivity)
 				requestNotificationsPermission()
-			}
-			startService(Intent(this@MainActivity, LocalIndexUpdateService::class.java))
-			startService(Intent(this@MainActivity, PeriodicalBackupService::class.java))
-			if (settings.isAdBlockEnabled) {
-				startService(Intent(this@MainActivity, AdListUpdateService::class.java))
+				startService(Intent(this@MainActivity, LocalIndexUpdateService::class.java))
+				startService(Intent(this@MainActivity, PeriodicalBackupService::class.java))
+				if (settings.isAdBlockEnabled) {
+					startService(Intent(this@MainActivity, AdListUpdateService::class.java))
+				}
 			}
 		}
 	}

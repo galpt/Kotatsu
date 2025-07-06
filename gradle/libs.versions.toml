@@ -2,9 +2,9 @@
 acra = "5.12.0"
 activity = "1.10.1"
 adapterdelegates = "4.3.2"
-appcompat = "1.7.0"
+appcompat = "1.7.1"
 avifDecoder = "1.1.1.14d8e3c4"
-biometric = "1.4.0-alpha03"
+biometric = "1.4.0-alpha04"
 coil = "3.2.0"
 collections = "1.5.0"
 #noinspection NewerVersionAvailable,GradleDependency - 2.5.3 cause crashes
@@ -16,8 +16,8 @@ dagger = "2.56.2"
 desugar = "2.1.5"
 diskLruCache = "1.5"
 documentfile = "1.1.0"
-fragment = "1.8.6"
-gradle = "8.10.0"
+fragment = "1.8.8"
+gradle = "8.10.1"
 guava = "33.4.8-android"
 hilt = "1.2.0"
 json = "20250517"
@@ -26,16 +26,17 @@ junitKtx = "1.2.1"
 kotlin = "2.1.21"
 ksp = "2.1.21-2.0.1"
 leakcanary = "3.0-alpha-8"
-lifecycle = "2.9.0"
+lifecycle = "2.9.1"
 markwon = "4.6.2"
-material = "1.14.0-alpha01"
+material = "1.14.0-alpha02"
 moshi = "1.15.2"
 okhttp = "4.12.0"
-okio = "3.11.0"
-parsers = "7b1a0b8d0d"
+okio = "3.12.0"
+parsers = "248d51321a"
 preference = "1.2.1"
 recyclerview = "1.4.0"
-room = "2.7.1"
+room = "2.7.2"
+serialization = "1.8.1"
 ssiv = "9a67b6a7c9"
 swiperefreshlayout = "1.1.0"
 testRules = "1.6.1"
@@ -43,7 +44,7 @@ testRunner = "1.6.2"
 transition = "1.6.0"
 viewpager2 = "1.1.0"
 webkit = "1.13.0"
-workRuntime = "2.10.1"
+workRuntime = "2.10.2"
 workinspector = "1.2"
 
 [libraries]
@@ -96,6 +97,7 @@ kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-guava = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-guava", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json-jvm", version.ref = "serialization" }
 leakcanary-android = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakcanary" }
 lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "lifecycle" }
 lifecycle-service = { module = "androidx.lifecycle:lifecycle-service", version.ref = "lifecycle" }
@@ -112,7 +114,8 @@ workinspector = { module = "com.github.Koitharu:WorkInspector", version.ref = "w
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "gradle" }
-kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "dagger" }
+kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlinx-serizliation = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 room = { id = "androidx.room", version.ref = "room" }

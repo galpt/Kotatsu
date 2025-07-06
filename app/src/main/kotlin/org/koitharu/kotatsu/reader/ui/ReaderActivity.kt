@@ -1,7 +1,9 @@
 package org.koitharu.kotatsu.reader.ui
 
+import android.app.assist.AssistContent
 import android.content.DialogInterface
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.view.KeyEvent
@@ -47,6 +49,7 @@ import org.koitharu.kotatsu.core.util.ext.isAnimationsEnabled
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.observeEvent
 import org.koitharu.kotatsu.core.util.ext.postDelayed
+import org.koitharu.kotatsu.core.util.ext.toUriOrNull
 import org.koitharu.kotatsu.core.util.ext.zipWithPrevious
 import org.koitharu.kotatsu.databinding.ActivityReaderBinding
 import org.koitharu.kotatsu.details.ui.pager.pages.PagesSavedObserver
@@ -69,7 +72,7 @@ class ReaderActivity :
 	ReaderControlDelegate.OnInteractionListener,
 	ReaderNavigationCallback,
 	IdlingDetector.Callback,
-	ZoomControl.ZoomControlListener {
+	ZoomControl.ZoomControlListener, View.OnClickListener, ScrollTimerControlView.OnVisibilityChangeListener {
 
 	@Inject
 	lateinit var settings: AppSettings
@@ -106,16 +109,21 @@ class ReaderActivity :
 		setContentView(ActivityReaderBinding.inflate(layoutInflater))
 		readerManager = ReaderManager(supportFragmentManager, viewBinding.container, settings)
 		setDisplayHomeAsUp(isEnabled = true, showUpAsClose = false)
-		touchHelper = TapGridDispatcher(this, this)
+		touchHelper = TapGridDispatcher(viewBinding.root, this)
 		scrollTimer = scrollTimerFactory.create(resources, this, this)
 		pageSaveHelper = pageSaveHelperFactory.create(this)
 		controlDelegate = ReaderControlDelegate(resources, settings, tapGridSettings, this)
 		viewBinding.zoomControl.listener = this
 		viewBinding.actionsView.listener = this
+		viewBinding.buttonTimer?.setOnClickListener(this)
 		idlingDetector.bindToLifecycle(this)
 		screenOrientationHelper.applySettings()
 		viewModel.isBookmarkAdded.observe(this) { viewBinding.actionsView.isBookmarkAdded = it }
-		scrollTimer.isActive.observe(this) { viewBinding.actionsView.setTimerActive(it) }
+		scrollTimer.isActive.observe(this) {
+			updateScrollTimerButton()
+			viewBinding.actionsView.setTimerActive(it)
+		}
+		viewBinding.timerControl.onVisibilityChangeListener = this
 		viewBinding.timerControl.attach(scrollTimer, this)
 		if (resources.getBoolean(R.bool.is_tablet)) {
 			viewBinding.timerControl.updateLayoutParams<CoordinatorLayout.LayoutParams> {
@@ -182,10 +190,21 @@ class ReaderActivity :
 		viewModel.onPause()
 	}
 
+	override fun onProvideAssistContent(outContent: AssistContent) {
+		super.onProvideAssistContent(outContent)
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+			viewModel.getMangaOrNull()?.publicUrl?.toUriOrNull()?.let { outContent.webUri = it }
+		}
+	}
+
 	override fun isNsfwContent(): Flow<Boolean> = viewModel.isMangaNsfw
 
 	override fun onIdle() {
 		viewModel.saveCurrentState(readerManager.currentReader?.getCurrentState())
+	}
+
+	override fun onVisibilityChanged(v: View, visibility: Int) {
+		updateScrollTimerButton()
 	}
 
 	override fun onZoomIn() {
@@ -194,6 +213,12 @@ class ReaderActivity :
 
 	override fun onZoomOut() {
 		readerManager.currentReader?.onZoomOut()
+	}
+
+	override fun onClick(v: View) {
+		when (v.id) {
+			R.id.button_timer -> onScrollTimerClick(isLongClick = false)
+		}
 	}
 
 	private fun onInitReader(mode: ReaderMode?) {
@@ -318,6 +343,7 @@ class ReaderActivity :
 			viewBinding.toolbarDocked?.isVisible = isUiVisible
 			viewBinding.infoBar.isGone = isUiVisible || (!viewModel.isInfoBarEnabled.value)
 			viewBinding.infoBar.isTimeVisible = isFullscreen
+			updateScrollTimerButton()
 			systemUiController.setSystemUiVisible(isUiVisible || !isFullscreen)
 		}
 	}
@@ -443,6 +469,18 @@ class ReaderActivity :
 		viewBinding.actionsView.isSliderEnabled = uiState.isSliderAvailable()
 		viewBinding.actionsView.isNextEnabled = uiState.hasNextChapter()
 		viewBinding.actionsView.isPrevEnabled = uiState.hasPreviousChapter()
+	}
+
+	private fun updateScrollTimerButton() {
+		val button = viewBinding.buttonTimer ?: return
+		val isButtonVisible = scrollTimer.isActive.value
+			&& !viewBinding.appbarTop.isVisible
+			&& !viewBinding.timerControl.isVisible
+		if (button.isVisible != isButtonVisible) {
+			val transition = Fade().addTarget(button)
+			TransitionManager.beginDelayedTransition(viewBinding.root, transition)
+			button.isVisible = isButtonVisible
+		}
 	}
 
 	private fun askForIncognitoMode() {

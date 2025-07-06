@@ -67,7 +67,8 @@ class DownloadsViewModel @Inject constructor(
 		expanded,
 	) { list, exp ->
 		list.toDownloadsList(exp)
-	}.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, null)
+	}.withErrorHandling()
+		.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, null)
 
 	val onActionDone = MutableEventFlow<ReversibleAction>()
 
@@ -225,7 +226,11 @@ class DownloadsViewModel @Inject constructor(
 				else -> {
 					val date = calculateTimeAgo(item.timestamp)
 					if (prevDate != date) {
-						destination += ListHeader(date)
+						destination += if (date != null) {
+							ListHeader(date)
+						} else {
+							ListHeader(R.string.unknown)
+						}
 					}
 					prevDate = date
 					destination += item
